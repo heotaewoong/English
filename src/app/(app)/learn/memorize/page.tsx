@@ -83,7 +83,7 @@ function parseCSV(text: string): (string | number | null)[][] {
 }
 
 /* ─── LocalStorage helpers ───────────────────────────────────────── */
-const STORAGE_KEY = 'fluentpath_vocab_v2';
+const STORAGE_KEY = 'neuroeng_vocab_v2';
 
 function loadItems(): VocabItem[] {
   try {

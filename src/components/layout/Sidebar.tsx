@@ -96,7 +96,7 @@ export default function Sidebar() {
             <Sparkles size={18} className="text-white" />
           </div>
           <span className="text-xl font-bold gradient-text tracking-tight">
-            FluentPath
+            NeuroEng
           </span>
         </Link>
       </div>

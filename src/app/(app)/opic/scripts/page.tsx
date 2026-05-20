@@ -11,7 +11,7 @@ import { topics, opicExpressions } from '@/data/opic';
 import { useTTS, useSpeechRecognition } from '@/hooks/useSpeech';
 
 /* ─── Constants ───────────────────────────────────────────────────── */
-const SCRIPTS_KEY = 'fluentpath_opic_scripts_v1';
+const SCRIPTS_KEY = 'neuroeng_opic_scripts_v1';
 
 /* ─── Types ───────────────────────────────────────────────────────── */
 interface SavedScript {

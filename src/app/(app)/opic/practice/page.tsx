@@ -52,7 +52,7 @@ function getDifficultyStars(category: string): number {
   return map[category] || 2;
 }
 
-const STORAGE_KEY = 'fluentpath_opic_practice_v1';
+const STORAGE_KEY = 'neuroeng_opic_practice_v1';
 
 interface Recording {
   url: string;        // blob URL (in-memory only — does not persist across reloads)

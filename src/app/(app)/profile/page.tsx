@@ -88,7 +88,7 @@ function computeOverallStreak(habits: Habit[]): number {
 /*  Settings persistence                                               */
 /* ------------------------------------------------------------------ */
 
-const SETTINGS_KEY = 'fluentpath_settings_v1';
+const SETTINGS_KEY = 'neuroeng_settings_v1';
 
 interface Settings {
   notifications: boolean;
@@ -144,7 +144,7 @@ export default function ProfilePage() {
     setDailyXpTarget(s.dailyXpTarget);
 
     try {
-      const raw = localStorage.getItem('fluentpath_vocab_v2');
+      const raw = localStorage.getItem('neuroeng_vocab_v2');
       if (raw) {
         const items: VocabItem[] = JSON.parse(raw);
         setVocabCount(items.length);
@@ -153,7 +153,7 @@ export default function ProfilePage() {
     } catch { /* ignore */ }
 
     try {
-      const raw = localStorage.getItem('fluentpath_habits_v1');
+      const raw = localStorage.getItem('neuroeng_habits_v1');
       if (raw) {
         const habits: Habit[] = JSON.parse(raw);
         setStreak(computeOverallStreak(habits));
@@ -490,7 +490,7 @@ export default function ProfilePage() {
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-sm text-[var(--text-muted)] px-1">
                 <Mail className="h-4 w-4" />
-                learner@fluentpath.com
+                learner@neuroeng.com
               </div>
               <button className="flex w-full items-center justify-between rounded-xl bg-[var(--bg-card)] border border-[var(--border-color)] px-4 py-3 text-sm font-medium text-[var(--text-secondary)] hover:border-indigo-500/30 transition-all">
                 <div className="flex items-center gap-2">
@@ -511,7 +511,7 @@ export default function ProfilePage() {
       {/* User card info footer */}
       <div className="flex items-center justify-center gap-2 text-xs text-[var(--text-muted)]">
         <User size={12} />
-        <span>FluentPath v0.1 · Free plan · Powered by Groq + Llama 3.3</span>
+        <span>NeuroEng v0.1 · Free plan · Powered by Groq + Llama 3.3</span>
       </div>
     </div>
   );

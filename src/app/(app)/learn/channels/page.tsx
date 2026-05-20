@@ -125,8 +125,8 @@ type MainTab = 'discover' | 'resources' | 'myChannels';
 /* ─────────────────────── Constants ─────────────────────── */
 
 const PALETTE = ['#ef4444','#f97316','#f59e0b','#10b981','#3b82f6','#8b5cf6','#ec4899','#06b6d4'];
-const LS_KEY = 'fluentpath_channels_v1';
-const LS_RESOURCES_KEY = 'fluentpath_resources_v1';
+const LS_KEY = 'neuroeng_channels_v1';
+const LS_RESOURCES_KEY = 'neuroeng_resources_v1';
 
 interface UserResource {
   id: string;

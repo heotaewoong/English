@@ -99,7 +99,7 @@ export default function LandingPage() {
             <Sparkles size={18} className="text-white" />
           </div>
           <span className="text-xl font-bold gradient-text tracking-tight">
-            FluentPath
+            NeuroEng
           </span>
         </div>
         <div className="flex items-center gap-3">
@@ -308,7 +308,7 @@ export default function LandingPage() {
               </h2>
               <p className="text-zinc-400 text-lg mb-8 max-w-lg mx-auto">
                 Join thousands of learners who are building real English fluency
-                with FluentPath.
+                with NeuroEng.
               </p>
               <Link
                 href="/dashboard"
@@ -338,11 +338,11 @@ export default function LandingPage() {
           <div className="flex items-center gap-2">
             <Sparkles size={16} className="text-indigo-400" />
             <span className="text-sm font-semibold gradient-text">
-              FluentPath
+              NeuroEng
             </span>
           </div>
           <p className="text-xs text-zinc-600">
-            &copy; {new Date().getFullYear()} FluentPath. All rights reserved.
+            &copy; {new Date().getFullYear()} NeuroEng. All rights reserved.
           </p>
         </div>
       </footer>

@@ -134,8 +134,8 @@ function formatDate(): string {
 /*  Component                                                          */
 /* ------------------------------------------------------------------ */
 
-const QUEST_KEY = 'fluentpath_quests_v1';
-const ALERT_KEY = 'fluentpath_api_alert_v1';
+const QUEST_KEY = 'neuroeng_quests_v1';
+const ALERT_KEY = 'neuroeng_api_alert_v1';
 
 function loadQuests(): Set<string> {
   try {
@@ -175,12 +175,12 @@ export default function DashboardPage() {
       .catch(() => {});
     // Real vocab count
     try {
-      const raw = localStorage.getItem('fluentpath_vocab_v2');
+      const raw = localStorage.getItem('neuroeng_vocab_v2');
       if (raw) setVocabCount(JSON.parse(raw).length);
     } catch {}
     // Real scripts count
     try {
-      const raw = localStorage.getItem('fluentpath_opic_scripts_v1');
+      const raw = localStorage.getItem('neuroeng_opic_scripts_v1');
       if (raw) setScriptCount(JSON.parse(raw).length);
     } catch {}
   }, []);

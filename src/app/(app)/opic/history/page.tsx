@@ -117,7 +117,7 @@ interface StoredSession {
   totalQuestions?: number;
 }
 
-const HISTORY_KEY = 'fluentpath_opic_history_v1';
+const HISTORY_KEY = 'neuroeng_opic_history_v1';
 
 function toDisplaySession(s: StoredSession): HistorySession {
   // Mock-test stores `duration` in seconds; legacy expects minutes

@@ -87,7 +87,7 @@ interface HistoryItem {
   timestamp: string;
 }
 
-const GRAMMAR_HISTORY_KEY = 'fluentpath_grammar_history_v2';
+const GRAMMAR_HISTORY_KEY = 'neuroeng_grammar_history_v2';
 
 function loadHistory(): HistoryItem[] {
   try {

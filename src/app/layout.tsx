@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "FluentPath - AI English Speaking Coach",
+  title: "NeuroEng - AI English Speaking Coach",
   description:
     "Master English speaking with AI-powered conversations, YouTube channel discovery, OPIc preparation, and personalized learning paths.",
 };

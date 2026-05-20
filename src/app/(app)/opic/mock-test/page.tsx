@@ -42,7 +42,7 @@ interface QuestionResult {
   audioUrl?: string;     // blob URL (in-memory only)
 }
 
-const HISTORY_KEY = 'fluentpath_opic_history_v1';
+const HISTORY_KEY = 'neuroeng_opic_history_v1';
 
 interface SessionRecord {
   id: string;

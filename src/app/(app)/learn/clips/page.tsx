@@ -881,13 +881,13 @@ export default function ClipsPage() {
   const [playerClip, setPlayerClip] = useState<Clip | null>(null);
   const [linkedVideos, setLinkedVideos] = useState<Record<string, string>>(() => {
     if (typeof window === 'undefined') return {};
-    try { return JSON.parse(localStorage.getItem('fluentpath_clip_videos') || '{}'); } catch { return {}; }
+    try { return JSON.parse(localStorage.getItem('neuroeng_clip_videos') || '{}'); } catch { return {}; }
   });
 
   const linkVideo = (clipId: string, videoId: string) => {
     const next = { ...linkedVideos, [clipId]: videoId };
     setLinkedVideos(next);
-    localStorage.setItem('fluentpath_clip_videos', JSON.stringify(next));
+    localStorage.setItem('neuroeng_clip_videos', JSON.stringify(next));
   };
   const toggleStep = (id: string, step: Step) => {
     setClips(prev => prev.map(c => { if (c.id !== id) return c; const has = c.stepsCompleted.includes(step); return { ...c, stepsCompleted: has ? c.stepsCompleted.filter(s => s !== step) : [...c.stepsCompleted, step] }; }));

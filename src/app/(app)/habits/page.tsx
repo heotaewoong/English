@@ -10,7 +10,7 @@ import {
 import Link from 'next/link';
 
 /* ─── Constants ───────────────────────────────────────────────────── */
-const HABITS_KEY = 'fluentpath_habits_v1';
+const HABITS_KEY = 'neuroeng_habits_v1';
 
 /* ─── Types ───────────────────────────────────────────────────────── */
 type TimeRange = '1M' | '3M' | '6M' | '1Y';
