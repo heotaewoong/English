@@ -1,19 +1,21 @@
-type YTConfig = {
-  videoId?: string;
-  playerVars?: Record<string, unknown>;
-  events?: { onReady?: () => void; onStateChange?: (e: { data: number }) => void };
-};
-
-type YTPlayer = {
-  playVideo(): void;
-  pauseVideo(): void;
-  seekTo(sec: number, allow: boolean): void;
-  getCurrentTime(): number;
-  setPlaybackRate(r: number): void;
-  destroy(): void;
-};
+export {};
 
 declare global {
+  type YTConfig = {
+    videoId?: string;
+    playerVars?: Record<string, unknown>;
+    events?: { onReady?: () => void; onStateChange?: (e: { data: number }) => void };
+  };
+
+  type YTPlayer = {
+    playVideo(): void;
+    pauseVideo(): void;
+    seekTo(sec: number, allow: boolean): void;
+    getCurrentTime(): number;
+    setPlaybackRate(r: number): void;
+    destroy(): void;
+  };
+
   interface Window {
     YT: {
       Player: new (el: HTMLElement, cfg: YTConfig) => YTPlayer;
