@@ -96,28 +96,6 @@ const ALL_CATEGORIES = [
   'Language-Learning', 'Celebrities', 'Interview', 'Travel',
 ];
 
-/* ─────────────────────── YT IFrame API ─────────────────────── */
-
-declare global {
-  interface Window {
-    YT: {
-      Player: new (el: HTMLElement, cfg: YTConfig) => YTPlayerInstance;
-      PlayerState: { UNSTARTED: -1; ENDED: 0; PLAYING: 1; PAUSED: 2; BUFFERING: 3; CUED: 5 };
-    };
-    onYouTubeIframeAPIReady?: () => void;
-  }
-}
-type YTConfig = {
-  videoId?: string;
-  playerVars?: Record<string, unknown>;
-  events?: { onReady?: () => void; onStateChange?: (e: { data: number }) => void };
-};
-type YTPlayerInstance = {
-  playVideo: () => void;
-  pauseVideo: () => void;
-  setPlaybackRate: (r: number) => void;
-  destroy: () => void;
-};
 
 /* ─────────────────────── Types ─────────────────────── */
 
@@ -217,7 +195,7 @@ function Waveform({ playing, barCount = 16, color = 'bg-indigo-500' }: {
 
 function VideoPlayer({ video, onBack }: { video: VideoEntry; onBack: () => void }) {
   const ytRef = useRef<HTMLDivElement>(null);
-  const playerRef = useRef<YTPlayerInstance | null>(null);
+  const playerRef = useRef<YTPlayer | null>(null);
   const mountedRef = useRef(true);
 
   const [ytReady, setYtReady] = useState(false);
