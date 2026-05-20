@@ -24,6 +24,7 @@ import {
   BarChart3,
   Volume2,
   AlertCircle,
+  Share2,
 } from 'lucide-react';
 import { topics, surveyPresets } from '@/data/opic';
 import { useTTS } from '@/hooks/useSpeech';
