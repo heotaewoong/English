@@ -5,7 +5,7 @@ import {
   Play, Pause, Mic, Square, SkipForward, ChevronRight, Trophy, RotateCcw,
   ChevronDown, ChevronUp, Clock, Target, TrendingUp, Award,
   CheckCircle2, XCircle, BarChart3, Volume2, AlertCircle, ChevronLeft,
-  Timer, Lightbulb, Check,
+  Timer, Lightbulb, Check, Sparkles, Bot, Star, RefreshCw,
 } from 'lucide-react';
 import { useTTS } from '@/hooks/useSpeech';
 import { useRecorder } from '@/hooks/useRecorder';
@@ -14,6 +14,7 @@ import { useRecorder } from '@/hooks/useRecorder';
 type Phase = 'survey' | 'orientation' | 'test' | 'results';
 type SurveyStep = 'level' | 'job' | 'living' | 'hobbies' | 'sports';
 type QuestionType = 'self-intro' | 'describe' | 'routine' | 'experience' | 'roleplay' | 'unexpected';
+type TestSubPhase = 'prep' | 'recording' | 'review';
 
 interface SurveyData {
   level: string;
@@ -28,6 +29,8 @@ interface TestQuestion {
   category: string;
   type: QuestionType;
   tips: string[];
+  keywords: string[];
+  scenario?: string; // for roleplay context
 }
 
 interface QuestionResult {
@@ -112,11 +115,12 @@ const SPORT_OPTIONS = [
 ];
 
 // ─── Question Database: Hobbies ───────────────────────────────────────────────
+interface QSlot { question: string; tips: string[]; keywords?: string[] }
 interface TopicSet {
   category: string;
-  describe: { question: string; tips: string[] };
-  routine:  { question: string; tips: string[] };
-  experience: { question: string; tips: string[] };
+  describe:   QSlot;
+  routine:    QSlot;
+  experience: QSlot;
 }
 
 const HOBBY_QS: Record<string, TopicSet> = {
@@ -125,14 +129,17 @@ const HOBBY_QS: Record<string, TopicSet> = {
     describe: {
       question: 'Describe the place where you usually watch movies. What does it look like and what kind of atmosphere does it have?',
       tips: ['극장/집/카페 등 구체적인 장소를 묘사하세요', '분위기, 크기, 특징을 상세히 설명하세요', '그 장소를 좋아하는 이유도 언급하세요'],
+      keywords: ['cozy atmosphere', 'It\'s located in...', 'The place is equipped with...', 'What I love most about it is...', 'spacious / intimate'],
     },
     routine: {
       question: 'What kinds of movies do you enjoy watching? Tell me about your typical movie-watching routine and habits.',
       tips: ['좋아하는 장르를 구체적으로 언급하세요', '얼마나 자주, 누구와 보는지 말하세요', '스트리밍 vs 극장 등 방식도 설명하세요'],
+      keywords: ['I\'m really into...', 'a couple of times a week', 'stream on Netflix/Watcha', 'I tend to prefer...', 'When it comes to movies...'],
     },
     experience: {
       question: 'Tell me about a movie that made a strong impression on you recently. What was it about and what made it so memorable?',
       tips: ['영화 제목과 줄거리를 간략히 소개하세요', '인상 깊었던 장면이나 이유를 구체적으로 말하세요', '자신의 감정과 반응을 포함하세요'],
+      keywords: ['The plot revolves around...', 'I was deeply moved by...', 'One scene that stood out was...', 'It left a lasting impression', 'I strongly recommend it'],
     },
   },
   music: {
@@ -548,6 +555,37 @@ const UNEXPECTED_QS = [
   { category: 'Unexpected: Transportation', question: 'Let\'s talk about transportation. What is the most popular form of transportation in your city or country? How has transportation changed over the years? What do you think is the biggest transportation challenge?', tips: ['대중교통, 자가용, 킥보드 등을 구체적으로 언급하세요', '과거와 현재의 교통수단 변화를 설명하세요', '자신이 주로 이용하는 교통수단도 말하세요'] },
 ];
 
+// ─── Keyword Bank (by question type + optional category override) ─────────────
+const TYPE_KEYWORDS: Record<QuestionType, string[]> = {
+  'self-intro': ["I'm currently working as...", "In my spare time, I enjoy...", "I'd describe myself as...", "One thing that defines me is...", "I've been living in..."],
+  describe:     ["It's located in...", "The atmosphere is quite...", "What I love most about it is...", "It's equipped with...", "The place has a very..."],
+  routine:      ["I usually do this about... a week", "My typical routine involves...", "I tend to...", "I make it a point to...", "On a regular basis, I..."],
+  experience:   ["I remember it vividly", "It was truly unforgettable", "What made it special was...", "I was genuinely moved by...", "Looking back on it now..."],
+  roleplay:     ["I'd like to ask about...", "Could you please tell me...?", "I understand, but...", "Would it be possible to...?", "As an alternative, I suggest..."],
+  unexpected:   ["From my perspective...", "One major change I've noticed is...", "I strongly believe that...", "The key factor here is...", "To give you a concrete example..."],
+};
+
+const CATEGORY_KEYWORDS: Record<string, string[]> = {
+  Movies:             ["The plot revolves around...", "I'm really into [genre]", "stream on Netflix/Watcha", "deeply moved by..."],
+  Music:              ["I'm a big fan of...", "sets the mood perfectly", "can't imagine my day without...", "the lyrics really resonate"],
+  Gaming:             ["It's incredibly immersive", "online with friends", "the graphics are stunning", "I've been hooked on..."],
+  Shopping:           ["I tend to browse online first", "great value for money", "I splurged on...", "couldn't resist buying..."],
+  Reading:            ["I got completely absorbed in...", "the author's writing style is...", "it really changed my perspective", "I'd highly recommend it"],
+  Cooking:            ["simmer / stir-fry / marinate", "from scratch", "the aroma was incredible", "it turned out perfectly"],
+  Hiking:             ["breathtaking scenery", "steep trail / gentle slope", "push through the fatigue", "a true sense of achievement"],
+  'Gym & Fitness':    ["sets and reps", "push my limits", "feel the burn", "stick to my routine"],
+  'Watching Sports':  ["the crowd went wild", "nail-biting finish", "rooting for...", "a legendary performance"],
+  'Role-Play: Travel Agency': ["I'd like to book...", "Is that included in the package?", "What are my options?", "I'd appreciate any alternatives"],
+  'Role-Play: Shopping':      ["I placed the order on...", "It arrived damaged", "I'd like a full refund", "Is there anything you can do?"],
+  'Role-Play: Restaurant':    ["reservation for [number] people", "dietary restrictions", "Is a window table available?", "We'd like to celebrate..."],
+};
+
+function getKeywordsForQuestion(type: QuestionType, category: string): string[] {
+  const catKw = CATEGORY_KEYWORDS[category] ?? [];
+  const typeKw = TYPE_KEYWORDS[type];
+  return [...catKw.slice(0, 3), ...typeKw.slice(0, 2)];
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function formatTime(s: number): string {
   const m = Math.floor(s / 60);
@@ -566,6 +604,17 @@ function getTypeConfig(type: QuestionType) {
   return cfg[type];
 }
 
+function makeQ(q: QSlot, category: string, type: QuestionType, scenario?: string): TestQuestion {
+  return {
+    question: q.question,
+    category,
+    type,
+    tips: q.tips,
+    keywords: q.keywords?.length ? q.keywords : getKeywordsForQuestion(type, category),
+    scenario,
+  };
+}
+
 function generateQuestions(survey: SurveyData): TestQuestion[] {
   const qs: TestQuestion[] = [];
 
@@ -575,34 +624,35 @@ function generateQuestions(survey: SurveyData): TestQuestion[] {
     category: 'Self-Introduction',
     type: 'self-intro',
     tips: ['이름, 직업/학교, 사는 곳 등 기본 정보로 시작하세요', '취미나 관심사를 자연스럽게 연결하세요', '1분 내외로 자연스럽게 답변하세요'],
+    keywords: TYPE_KEYWORDS['self-intro'],
   });
 
   // 2. Hobby topics (first 2 selected)
-  const h1 = HOBBY_QS[survey.hobbies[0]];
-  const h2 = HOBBY_QS[survey.hobbies[1]];
-  for (const h of [h1, h2]) {
+  for (const hobbyId of survey.hobbies.slice(0, 2)) {
+    const h = HOBBY_QS[hobbyId];
     if (!h) continue;
-    qs.push({ question: h.describe.question, category: h.category, type: 'describe', tips: h.describe.tips });
-    qs.push({ question: h.routine.question,  category: h.category, type: 'routine',  tips: h.routine.tips });
-    qs.push({ question: h.experience.question, category: h.category, type: 'experience', tips: h.experience.tips });
+    qs.push(makeQ(h.describe,   h.category, 'describe'));
+    qs.push(makeQ(h.routine,    h.category, 'routine'));
+    qs.push(makeQ(h.experience, h.category, 'experience'));
   }
 
   // 3. Sport topic (first selected)
   const sp = SPORT_QS[survey.sports[0]] ?? SPORT_QS.gym;
-  qs.push({ question: sp.describe.question,   category: sp.category, type: 'describe',   tips: sp.describe.tips });
-  qs.push({ question: sp.routine.question,    category: sp.category, type: 'routine',    tips: sp.routine.tips });
-  qs.push({ question: sp.experience.question, category: sp.category, type: 'experience', tips: sp.experience.tips });
+  qs.push(makeQ(sp.describe,   sp.category, 'describe'));
+  qs.push(makeQ(sp.routine,    sp.category, 'routine'));
+  qs.push(makeQ(sp.experience, sp.category, 'experience'));
 
   // 4. Roleplay set (random)
   const rp = ROLEPLAY_SETS[Math.floor(Math.random() * ROLEPLAY_SETS.length)];
-  qs.push({ question: rp.q1.question, category: rp.category, type: 'roleplay', tips: rp.q1.tips });
-  qs.push({ question: rp.q2.question, category: rp.category, type: 'roleplay', tips: rp.q2.tips });
-  qs.push({ question: rp.q3.question, category: rp.category, type: 'roleplay', tips: rp.q3.tips });
+  const rpScenario = `[롤플레이 상황] ${rp.category.replace('Role-Play: ', '')}`;
+  qs.push({ question: rp.q1.question, category: rp.category, type: 'roleplay', tips: rp.q1.tips, keywords: getKeywordsForQuestion('roleplay', rp.category), scenario: rpScenario });
+  qs.push({ question: rp.q2.question, category: rp.category, type: 'roleplay', tips: rp.q2.tips, keywords: getKeywordsForQuestion('roleplay', rp.category), scenario: rpScenario });
+  qs.push({ question: rp.q3.question, category: rp.category, type: 'experience', tips: rp.q3.tips, keywords: getKeywordsForQuestion('experience', rp.category) });
 
   // 5. Unexpected (2 random)
   const shuffled = [...UNEXPECTED_QS].sort(() => Math.random() - 0.5);
-  qs.push({ question: shuffled[0].question, category: shuffled[0].category, type: 'unexpected', tips: shuffled[0].tips });
-  qs.push({ question: shuffled[1].question, category: shuffled[1].category, type: 'unexpected', tips: shuffled[1].tips });
+  qs.push({ question: shuffled[0].question, category: shuffled[0].category, type: 'unexpected', tips: shuffled[0].tips, keywords: getKeywordsForQuestion('unexpected', shuffled[0].category) });
+  qs.push({ question: shuffled[1].question, category: shuffled[1].category, type: 'unexpected', tips: shuffled[1].tips, keywords: getKeywordsForQuestion('unexpected', shuffled[1].category) });
 
   return qs.slice(0, 15);
 }
@@ -634,11 +684,17 @@ export default function MockTestPage() {
   // ── Test state
   const [questions, setQuestions] = useState<TestQuestion[]>([]);
   const [qIdx, setQIdx] = useState(0);
-  const [isPreparing, setIsPreparing] = useState(true);
+  const [subPhase, setSubPhase] = useState<TestSubPhase>('prep');
   const [prepLeft, setPrepLeft] = useState(PREP_SECONDS);
   const [totalTime, setTotalTime] = useState(0);
   const [results, setResults] = useState<QuestionResult[]>([]);
   const [showTips, setShowTips] = useState(false);
+  const [pendingResult, setPendingResult] = useState<QuestionResult | null>(null);
+
+  // ── AI model answer
+  const [modelAnswer, setModelAnswer] = useState<string>('');
+  const [isLoadingAnswer, setIsLoadingAnswer] = useState(false);
+  const [selfScore, setSelfScore] = useState<number | null>(null);
 
   // ── Playback
   const [playingIdx, setPlayingIdx] = useState<number | null>(null);
@@ -671,16 +727,41 @@ export default function MockTestPage() {
 
   // ── Prep countdown
   useEffect(() => {
-    if (phase !== 'test' || !isPreparing) return;
-    if (prepLeft <= 0) { setIsPreparing(false); return; }
+    if (phase !== 'test' || subPhase !== 'prep') return;
+    if (prepLeft <= 0) { setSubPhase('recording'); return; }
     prepTimerRef.current = setInterval(() => setPrepLeft((p) => p - 1), 1000);
     return () => { if (prepTimerRef.current) clearInterval(prepTimerRef.current); };
-  }, [phase, isPreparing, prepLeft]);
+  }, [phase, subPhase, prepLeft]);
 
   // ── Auto-stop recording at 2:00
   useEffect(() => {
     if (recorder.isRecording && recorder.duration >= MAX_RECORD_SECONDS) recorder.stop();
   }, [recorder.isRecording, recorder.duration, recorder]);
+
+  const generateModelAnswer = useCallback(async (question: string) => {
+    const levelMap: Record<string, string> = { '6&6': 'AL', '5&6': 'IH', '5&5': 'IM3', '4&5': 'IM2', '3&4': 'IM1' };
+    const targetLevel = levelMap[survey.level] ?? 'IH';
+    setIsLoadingAnswer(true);
+    setModelAnswer('');
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mode: 'script_gen',
+          difficulty: targetLevel,
+          context: question,
+          messages: [{ role: 'user', content: `Generate a natural OPIc speaking answer for: "${question}"` }],
+        }),
+      });
+      const data = await res.json();
+      setModelAnswer(data.result ?? '');
+    } catch {
+      setModelAnswer('모범 답안을 불러오는 중 오류가 발생했습니다.');
+    } finally {
+      setIsLoadingAnswer(false);
+    }
+  }, [survey.level]);
 
   // ── Finish question when audio ready
   const finishQuestion = useCallback((withRec: boolean, dur: number, url?: string) => {
@@ -688,9 +769,9 @@ export default function MockTestPage() {
       '3&4': 3, '4&5': 4, '5&5': 5, '5&6': 6.5, '6&6': 8,
     };
     const base = levelMap[survey.level] ?? 5;
-    const timeBonus   = withRec ? Math.min(dur / 90, 1) * 2 : 0;
-    const variation   = withRec ? (Math.random() - 0.3) * 1.5 : 0;
-    const score       = withRec ? Math.min(10, Math.max(1, base + timeBonus + variation)) : 0;
+    const timeBonus = withRec ? Math.min(dur / 90, 1) * 2 : 0;
+    const variation = withRec ? (Math.random() - 0.3) * 1.5 : 0;
+    const score     = withRec ? Math.min(10, Math.max(1, base + timeBonus + variation)) : 0;
 
     const result: QuestionResult = {
       question: questions[qIdx].question,
@@ -701,14 +782,23 @@ export default function MockTestPage() {
       audioUrl: url,
     };
 
-    const next = [...results, result];
+    setPendingResult(result);
+    setModelAnswer('');
+    setSelfScore(null);
+    setSubPhase('review');
+  }, [qIdx, questions, survey.level]);
+
+  const confirmAndAdvance = useCallback(() => {
+    if (!pendingResult) return;
+    const next = [...results, pendingResult];
     setResults(next);
     recorder.reset();
     setShowTips(false);
+    setPendingResult(null);
 
     if (qIdx < questions.length - 1) {
       setQIdx((i) => i + 1);
-      setIsPreparing(true);
+      setSubPhase('prep');
       setPrepLeft(PREP_SECONDS);
     } else {
       if (totalTimerRef.current) clearInterval(totalTimerRef.current);
@@ -721,7 +811,7 @@ export default function MockTestPage() {
       } catch { /* ignore */ }
       setPhase('results');
     }
-  }, [qIdx, questions, results, survey.level, recorder, totalTime]);
+  }, [pendingResult, results, qIdx, questions.length, recorder, totalTime]);
 
   useEffect(() => {
     if (recorder.audioURL && stopRecPendingRef.current) {
@@ -755,9 +845,12 @@ export default function MockTestPage() {
     setQIdx(0);
     setResults([]);
     setTotalTime(0);
-    setIsPreparing(true);
+    setSubPhase('prep');
     setPrepLeft(PREP_SECONDS);
     setOrientCount(3);
+    setPendingResult(null);
+    setModelAnswer('');
+    setSelfScore(null);
     setPhase('orientation');
   };
 
@@ -768,6 +861,10 @@ export default function MockTestPage() {
     setSurvey({ level: '5&6', job: '', living: '', hobbies: [], sports: [] });
     setResults([]);
     setQIdx(0);
+    setSubPhase('prep');
+    setPendingResult(null);
+    setModelAnswer('');
+    setSelfScore(null);
   };
 
   useEffect(() => {
@@ -1092,6 +1189,7 @@ export default function MockTestPage() {
     const typeConfig = getTypeConfig(currentQ.type);
     const recTime = recorder.duration;
     const isRec = recorder.isRecording;
+    const levelLabel = ({ '6&6': 'AL', '5&6': 'IH', '5&5': 'IM3', '4&5': 'IM2', '3&4': 'IM1' } as Record<string,string>)[survey.level] ?? 'IH';
 
     return (
       <div className="min-h-screen bg-[var(--bg-primary)]">
@@ -1100,12 +1198,9 @@ export default function MockTestPage() {
           <div className="max-w-3xl mx-auto px-4 py-3">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-3">
-                <span className="text-sm font-semibold text-[var(--text-primary)]">
-                  문항 {qIdx + 1} / {questions.length}
-                </span>
-                <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold border ${typeConfig.color}`}>
-                  {typeConfig.label}
-                </span>
+                <span className="text-sm font-semibold text-[var(--text-primary)]">문항 {qIdx + 1} / {questions.length}</span>
+                <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold border ${typeConfig.color}`}>{typeConfig.label}</span>
+                {subPhase === 'review' && <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">검토 중</span>}
               </div>
               <div className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
                 <Clock className="w-4 h-4" />
@@ -1119,13 +1214,23 @@ export default function MockTestPage() {
         </div>
 
         <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6">
+
+          {/* Roleplay scenario banner */}
+          {currentQ.scenario && subPhase !== 'review' && (
+            <div className="flex items-start gap-3 px-5 py-4 rounded-xl bg-purple-500/10 border border-purple-500/20 mb-4">
+              <Bot className="w-5 h-5 text-purple-400 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-xs font-bold text-purple-400 uppercase tracking-wider mb-1">롤플레이 시나리오</p>
+                <p className="text-sm text-purple-200">{currentQ.scenario}</p>
+              </div>
+            </div>
+          )}
+
           {/* Question card */}
           <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border-color)] p-6 sm:p-8 mb-4 shadow-sm">
-            <div className="flex items-start justify-between gap-4 mb-4">
-              <p className="text-lg sm:text-xl font-semibold text-[var(--text-primary)] leading-relaxed">
-                {currentQ.question}
-              </p>
-            </div>
+            <p className="text-lg sm:text-xl font-semibold text-[var(--text-primary)] leading-relaxed mb-4">
+              {currentQ.question}
+            </p>
             <button
               onClick={() => isSpeaking ? stopTTS() : speak(currentQ.question, 0.85)}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-500/10 text-indigo-300 hover:bg-indigo-500/20 transition-all text-sm font-medium border border-indigo-500/20"
@@ -1135,34 +1240,51 @@ export default function MockTestPage() {
             </button>
           </div>
 
-          {/* ── PREP TIME ── */}
-          {isPreparing ? (
-            <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border-color)] p-8 mb-4 shadow-sm text-center">
-              <p className="text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)] mb-3">문항 준비 시간</p>
-              <div className="relative inline-flex items-center justify-center mb-4">
-                <svg className="w-28 h-28 -rotate-90" viewBox="0 0 100 100">
-                  <circle cx="50" cy="50" r="44" fill="none" stroke="var(--border-color)" strokeWidth="8" />
-                  <circle
-                    cx="50" cy="50" r="44" fill="none"
-                    stroke="#6366f1" strokeWidth="8" strokeLinecap="round"
-                    strokeDasharray={`${2 * Math.PI * 44}`}
-                    strokeDashoffset={`${2 * Math.PI * 44 * (1 - prepLeft / PREP_SECONDS)}`}
-                    style={{ transition: 'stroke-dashoffset 1s linear' }}
-                  />
-                </svg>
-                <span className="absolute text-4xl font-bold tabular-nums text-[var(--text-primary)]">{prepLeft}</span>
+          {/* ══ PREP PHASE ══ */}
+          {subPhase === 'prep' && (
+            <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border-color)] p-6 sm:p-8 mb-4 shadow-sm">
+              <div className="flex flex-col sm:flex-row items-center gap-8">
+                {/* Circular countdown */}
+                <div className="flex flex-col items-center shrink-0">
+                  <p className="text-[11px] font-bold uppercase tracking-widest text-[var(--text-muted)] mb-3">준비 시간</p>
+                  <div className="relative inline-flex items-center justify-center">
+                    <svg className="w-24 h-24 -rotate-90" viewBox="0 0 100 100">
+                      <circle cx="50" cy="50" r="42" fill="none" stroke="var(--border-color)" strokeWidth="8" />
+                      <circle cx="50" cy="50" r="42" fill="none" stroke="#6366f1" strokeWidth="8" strokeLinecap="round"
+                        strokeDasharray={`${2 * Math.PI * 42}`}
+                        strokeDashoffset={`${2 * Math.PI * 42 * (1 - prepLeft / PREP_SECONDS)}`}
+                        style={{ transition: 'stroke-dashoffset 1s linear' }}
+                      />
+                    </svg>
+                    <span className="absolute text-3xl font-bold tabular-nums text-[var(--text-primary)]">{prepLeft}</span>
+                  </div>
+                </div>
+                {/* Keywords */}
+                <div className="flex-1 w-full">
+                  <p className="text-xs font-bold text-amber-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    <Lightbulb className="w-3.5 h-3.5" />핵심 표현 힌트
+                  </p>
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {currentQ.keywords.map((kw, i) => (
+                      <span key={i} className="px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs font-medium">
+                        {kw}
+                      </span>
+                    ))}
+                  </div>
+                  <button
+                    onClick={() => { setSubPhase('recording'); if (prepTimerRef.current) clearInterval(prepTimerRef.current); }}
+                    className="w-full flex items-center justify-center gap-2 px-6 py-3 rounded-xl gradient-primary text-white font-semibold hover:opacity-90 transition-all shadow-md"
+                  >
+                    <Mic className="w-5 h-5" />
+                    지금 바로 녹음 시작
+                  </button>
+                </div>
               </div>
-              <p className="text-sm text-[var(--text-secondary)] mb-6">답변을 준비하세요. 준비되면 바로 녹음을 시작하세요.</p>
-              <button
-                onClick={() => { setIsPreparing(false); if (prepTimerRef.current) clearInterval(prepTimerRef.current); }}
-                className="inline-flex items-center gap-2 px-8 py-3 rounded-xl gradient-primary text-white font-semibold hover:opacity-90 transition-all shadow-md"
-              >
-                <Mic className="w-5 h-5" />
-                지금 바로 녹음 시작
-              </button>
             </div>
-          ) : (
-            /* ── RECORDING AREA ── */
+          )}
+
+          {/* ══ RECORDING PHASE ══ */}
+          {subPhase === 'recording' && (
             <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border-color)] p-6 sm:p-8 mb-4 shadow-sm">
               {recorder.error && (
                 <div className="flex items-start gap-3 px-4 py-3 mb-4 rounded-xl bg-red-500/10 border border-red-500/20">
@@ -1171,7 +1293,6 @@ export default function MockTestPage() {
                 </div>
               )}
               <div className="text-center">
-                {/* Record button */}
                 <div className="relative inline-flex items-center justify-center mb-5">
                   {isRec && (
                     <>
@@ -1189,57 +1310,28 @@ export default function MockTestPage() {
                     {isRec ? <Square className="w-10 h-10" /> : <Mic className="w-10 h-10" />}
                   </button>
                 </div>
-
-                {/* Timer */}
                 <div className="mb-5">
-                  <p className="text-4xl font-mono font-bold tabular-nums text-[var(--text-primary)]">
-                    {formatTime(recTime)}
-                  </p>
+                  <p className="text-4xl font-mono font-bold tabular-nums text-[var(--text-primary)]">{formatTime(recTime)}</p>
                   <p className="text-xs text-[var(--text-muted)] mt-1.5">
-                    {isRec
-                      ? '녹음 중... (최대 2:00)'
-                      : recorder.audioURL
-                      ? '✓ 녹음 완료 — "다음 문항"으로 저장'
-                      : '마이크 버튼을 눌러 녹음을 시작하세요'}
+                    {isRec ? '녹음 중... (최대 2:00)' : recorder.audioURL ? '✓ 녹음 완료 — 제출하기를 누르세요' : '마이크 버튼을 눌러 녹음을 시작하세요'}
                   </p>
-                  {/* Progress bar */}
                   <div className="mt-3 max-w-xs mx-auto h-1.5 bg-[var(--bg-secondary)] rounded-full overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all duration-1000 ${recTime > 90 ? 'bg-red-500' : 'bg-indigo-500'}`}
-                      style={{ width: `${(recTime / MAX_RECORD_SECONDS) * 100}%` }}
-                    />
+                    <div className={`h-full rounded-full transition-all duration-1000 ${recTime > 90 ? 'bg-red-500' : 'bg-indigo-500'}`} style={{ width: `${(recTime / MAX_RECORD_SECONDS) * 100}%` }} />
                   </div>
                 </div>
-
-                {/* Waveform */}
                 <div className="flex items-center justify-center gap-[3px] h-10 mb-5">
                   {Array.from({ length: 28 }).map((_, i) => {
                     const ph = Math.sin((Date.now() / 80 + i) * 0.5);
                     const h = isRec ? 4 + Math.abs(ph) * recorder.level * 32 + recorder.level * 6 : 4;
-                    return (
-                      <div
-                        key={i}
-                        className={`w-1 rounded-full transition-all duration-75 ${isRec ? 'bg-red-400' : 'bg-[var(--border-color)]'}`}
-                        style={{ height: `${Math.max(4, h)}px` }}
-                      />
-                    );
+                    return <div key={i} className={`w-1 rounded-full transition-all duration-75 ${isRec ? 'bg-red-400' : 'bg-[var(--border-color)]'}`} style={{ height: `${Math.max(4, h)}px` }} />;
                   })}
                 </div>
-
-                {/* Action buttons */}
                 <div className="flex items-center justify-center gap-3">
-                  <button
-                    onClick={skipQuestion}
-                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-[var(--border-color)] text-[var(--text-secondary)] text-sm font-medium hover:bg-[var(--bg-secondary)] transition-colors"
-                  >
-                    <SkipForward className="w-4 h-4" />
-                    건너뛰기
+                  <button onClick={skipQuestion} className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-[var(--border-color)] text-[var(--text-secondary)] text-sm font-medium hover:bg-[var(--bg-secondary)] transition-colors">
+                    <SkipForward className="w-4 h-4" />건너뛰기
                   </button>
-                  <button
-                    onClick={saveAndNext}
-                    className="flex items-center gap-2 px-7 py-2.5 rounded-xl gradient-primary text-white text-sm font-semibold hover:opacity-90 transition-all shadow-sm"
-                  >
-                    {qIdx < questions.length - 1 ? '다음 문항' : '시험 완료'}
+                  <button onClick={saveAndNext} className="flex items-center gap-2 px-7 py-2.5 rounded-xl gradient-primary text-white text-sm font-semibold hover:opacity-90 transition-all shadow-sm">
+                    답변 제출
                     <ChevronRight className="w-4 h-4" />
                   </button>
                 </div>
@@ -1247,31 +1339,164 @@ export default function MockTestPage() {
             </div>
           )}
 
-          {/* Tips toggle */}
-          <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border-color)] overflow-hidden">
-            <button
-              onClick={() => setShowTips(!showTips)}
-              className="w-full flex items-center justify-between px-5 py-3.5 text-left hover:bg-[var(--bg-secondary)] transition-colors"
-            >
-              <span className="flex items-center gap-2 text-sm font-medium text-[var(--text-secondary)]">
-                <Lightbulb className="w-4 h-4 text-amber-400" />
-                답변 팁 보기
-              </span>
-              {showTips ? <ChevronUp className="w-4 h-4 text-[var(--text-muted)]" /> : <ChevronDown className="w-4 h-4 text-[var(--text-muted)]" />}
-            </button>
-            {showTips && (
-              <div className="px-5 pb-4 border-t border-[var(--border-color)]">
-                <ul className="space-y-2 pt-3">
-                  {currentQ.tips.map((tip, i) => (
-                    <li key={i} className="flex items-start gap-2 text-sm text-[var(--text-secondary)]">
-                      <span className="text-amber-400 font-bold shrink-0">·</span>
-                      {tip}
-                    </li>
-                  ))}
-                </ul>
+          {/* ══ REVIEW PHASE ══ */}
+          {subPhase === 'review' && pendingResult && (
+            <div className="space-y-4 mb-4">
+              {/* My answer stats */}
+              <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border-color)] p-6 shadow-sm">
+                <h3 className="font-semibold text-[var(--text-primary)] mb-4 flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                  내 답변 결과
+                </h3>
+                <div className="flex flex-wrap gap-4 mb-4">
+                  <div className="flex-1 min-w-[100px] bg-[var(--bg-secondary)] rounded-xl p-3 text-center">
+                    <p className="text-xs text-[var(--text-muted)] mb-1">답변 시간</p>
+                    <p className="text-xl font-bold tabular-nums text-[var(--text-primary)]">{formatTime(pendingResult.duration)}</p>
+                  </div>
+                  <div className="flex-1 min-w-[100px] bg-[var(--bg-secondary)] rounded-xl p-3 text-center">
+                    <p className="text-xs text-[var(--text-muted)] mb-1">예상 점수</p>
+                    <p className={`text-xl font-bold tabular-nums ${pendingResult.estimatedScore >= 7 ? 'text-emerald-400' : pendingResult.estimatedScore >= 4 ? 'text-amber-400' : 'text-red-400'}`}>
+                      {pendingResult.estimatedScore > 0 ? pendingResult.estimatedScore.toFixed(1) : '—'}
+                    </p>
+                  </div>
+                  {pendingResult.audioUrl && (
+                    <div className="flex-1 min-w-[120px] flex items-center justify-center">
+                      <button
+                        onClick={() => {
+                          if (!audioRef.current) return;
+                          if (playingIdx === -1) { audioRef.current.pause(); setPlayingIdx(null); return; }
+                          audioRef.current.src = pendingResult.audioUrl!;
+                          audioRef.current.play().then(() => setPlayingIdx(-1)).catch(() => {});
+                        }}
+                        className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-500/10 text-indigo-300 hover:bg-indigo-500/20 border border-indigo-500/20 text-sm font-medium transition-all"
+                      >
+                        {playingIdx === -1 ? <Pause size={14}/> : <Play size={14}/>}
+                        {playingIdx === -1 ? '정지' : '내 답변 듣기'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Self-evaluation */}
+                <div className="border-t border-[var(--border-color)] pt-4">
+                  <p className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-2">내 답변 자가 평가</p>
+                  <div className="flex gap-2">
+                    {[1,2,3,4,5].map((n) => (
+                      <button
+                        key={n}
+                        onClick={() => setSelfScore(n)}
+                        className={`flex-1 py-2 rounded-lg text-sm font-semibold border transition-all ${
+                          selfScore === n
+                            ? 'bg-amber-400/20 border-amber-400/50 text-amber-300'
+                            : 'border-[var(--border-color)] text-[var(--text-muted)] hover:border-amber-400/30'
+                        }`}
+                      >
+                        {'★'.repeat(n)}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex justify-between text-[10px] text-[var(--text-muted)] mt-1 px-1">
+                    <span>부족함</span><span>완벽함</span>
+                  </div>
+                </div>
               </div>
-            )}
-          </div>
+
+              {/* AI Model Answer */}
+              <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border-color)] overflow-hidden shadow-sm">
+                <div className="px-6 py-4 border-b border-[var(--border-color)] flex items-center justify-between">
+                  <h3 className="font-semibold text-[var(--text-primary)] flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-violet-400" />
+                    AI 모범 답안 <span className="text-xs font-normal text-[var(--text-muted)] ml-1">({levelLabel} 수준)</span>
+                  </h3>
+                  {!modelAnswer && !isLoadingAnswer && (
+                    <button
+                      onClick={() => generateModelAnswer(currentQ.question)}
+                      className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-violet-500/15 text-violet-300 border border-violet-500/20 text-xs font-semibold hover:bg-violet-500/25 transition-all"
+                    >
+                      <Sparkles size={12} />생성하기
+                    </button>
+                  )}
+                  {modelAnswer && (
+                    <button
+                      onClick={() => generateModelAnswer(currentQ.question)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[var(--border-color)] text-[var(--text-muted)] text-xs hover:bg-[var(--bg-secondary)] transition-all"
+                    >
+                      <RefreshCw size={11} />재생성
+                    </button>
+                  )}
+                </div>
+                <div className="px-6 py-5">
+                  {isLoadingAnswer ? (
+                    <div className="flex items-center gap-3 text-sm text-[var(--text-muted)]">
+                      <div className="w-4 h-4 border-2 border-violet-400/50 border-t-violet-400 rounded-full animate-spin" />
+                      AI가 모범 답안을 작성하는 중...
+                    </div>
+                  ) : modelAnswer ? (
+                    <div className="prose-sm text-[var(--text-secondary)] leading-relaxed whitespace-pre-wrap text-sm">{modelAnswer}</div>
+                  ) : (
+                    <p className="text-sm text-[var(--text-muted)]">
+                      &apos;생성하기&apos; 버튼을 눌러 {levelLabel} 수준의 모범 답안을 확인하세요.
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Tips */}
+              <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border-color)] overflow-hidden">
+                <button onClick={() => setShowTips(!showTips)} className="w-full flex items-center justify-between px-5 py-3.5 text-left hover:bg-[var(--bg-secondary)] transition-colors">
+                  <span className="flex items-center gap-2 text-sm font-medium text-[var(--text-secondary)]">
+                    <Lightbulb className="w-4 h-4 text-amber-400" />답변 팁
+                  </span>
+                  {showTips ? <ChevronUp className="w-4 h-4 text-[var(--text-muted)]" /> : <ChevronDown className="w-4 h-4 text-[var(--text-muted)]" />}
+                </button>
+                {showTips && (
+                  <div className="px-5 pb-4 border-t border-[var(--border-color)]">
+                    <ul className="space-y-2 pt-3">
+                      {currentQ.tips.map((tip, i) => (
+                        <li key={i} className="flex items-start gap-2 text-sm text-[var(--text-secondary)]">
+                          <span className="text-amber-400 font-bold shrink-0">·</span>{tip}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+
+              {/* Next button */}
+              <button
+                onClick={confirmAndAdvance}
+                className="w-full flex items-center justify-center gap-2 px-6 py-4 rounded-2xl gradient-primary text-white font-semibold text-base hover:opacity-90 transition-all shadow-lg"
+              >
+                {qIdx < questions.length - 1 ? '다음 문항으로' : '시험 결과 보기'}
+                <ChevronRight className="w-5 h-5" />
+              </button>
+            </div>
+          )}
+
+          {/* Tips (prep/recording phases) */}
+          {subPhase !== 'review' && (
+            <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border-color)] overflow-hidden">
+              <button onClick={() => setShowTips(!showTips)} className="w-full flex items-center justify-between px-5 py-3.5 text-left hover:bg-[var(--bg-secondary)] transition-colors">
+                <span className="flex items-center gap-2 text-sm font-medium text-[var(--text-secondary)]">
+                  <Lightbulb className="w-4 h-4 text-amber-400" />답변 팁 보기
+                </span>
+                {showTips ? <ChevronUp className="w-4 h-4 text-[var(--text-muted)]" /> : <ChevronDown className="w-4 h-4 text-[var(--text-muted)]" />}
+              </button>
+              {showTips && (
+                <div className="px-5 pb-4 border-t border-[var(--border-color)]">
+                  <ul className="space-y-2 pt-3">
+                    {currentQ.tips.map((tip, i) => (
+                      <li key={i} className="flex items-start gap-2 text-sm text-[var(--text-secondary)]">
+                        <span className="text-amber-400 font-bold shrink-0">·</span>{tip}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+
+          <audio ref={audioRef} onEnded={() => setPlayingIdx(null)} onPause={() => setPlayingIdx(null)} />
         </div>
       </div>
     );
