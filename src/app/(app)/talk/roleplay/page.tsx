@@ -115,7 +115,7 @@ export default function RoleplayTalkPage() {
   const abortRef = useRef<AbortController | null>(null);
 
   /* ── Speech hooks ──────────────────────────────────────────────── */
-  const { isListening, isSupported: sttSupported, toggleListening } =
+  const { isListening, isSupported: sttSupported, toggleListening, interimText } =
     useSpeechRecognition((text) =>
       setInputText((prev) => (prev ? prev + ' ' + text : text))
     );
@@ -163,7 +163,7 @@ export default function RoleplayTalkPage() {
 
   /* Send a user message with real Groq streaming */
   const handleSend = useCallback(async (text?: string) => {
-    const sendText = (text ?? inputText).trim();
+    const sendText = text ?? (inputText.trim() || interimText.trim());
     if (!sendText || isLoading || !selectedScenario) return;
     setInputText('');
     if (isListening) toggleListening();
@@ -234,7 +234,7 @@ export default function RoleplayTalkPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [inputText, isLoading, isListening, toggleListening, messages, selectedScenario]);
+  }, [inputText, interimText, isLoading, isListening, toggleListening, messages, selectedScenario]);
 
   /* Back to scenario list */
   const handleBack = () => {
@@ -502,26 +502,28 @@ export default function RoleplayTalkPage() {
             )}
             <button
               onClick={() => handleSend()}
-              disabled={!inputText.trim() || isLoading}
+              disabled={!inputText.trim() && !interimText.trim() || isLoading}
               className="p-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-500 text-white disabled:opacity-40 disabled:cursor-not-allowed hover:shadow-lg hover:shadow-indigo-500/25 transition-all"
             >
               {isLoading ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
             </button>
           </div>
-          {(isLoading || isListening) && (
+          {/* Real-time transcript */}
+          {isListening && (
+            <div className="mt-2 flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-white/[0.03] border border-red-500/20 min-h-[40px]">
+              <span className="w-2 h-2 rounded-full bg-red-400 animate-pulse shrink-0" />
+              <span className={`text-sm leading-relaxed flex-1 ${interimText ? 'text-zinc-200' : 'text-zinc-600 italic'}`}>
+                {interimText || '말해보세요…'}
+              </span>
+              {interimText && (
+                <span className="inline-block w-0.5 h-4 bg-indigo-400 animate-pulse shrink-0" />
+              )}
+            </div>
+          )}
+          {isLoading && (
             <p className="text-xs text-center mt-1.5 flex items-center justify-center gap-1">
-              {isLoading && (
-                <>
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  <span className="text-indigo-400/60">AI is thinking…</span>
-                </>
-              )}
-              {isListening && (
-                <>
-                  <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
-                  <span className="text-red-400/80">Listening… speak clearly</span>
-                </>
-              )}
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="text-indigo-400/60">AI is thinking…</span>
             </p>
           )}
         </div>

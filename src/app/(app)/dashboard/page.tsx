@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   Flame,
@@ -23,6 +24,8 @@ import {
   X,
   BookOpen,
   TrendingUp,
+  Crown,
+  PartyPopper,
 } from 'lucide-react';
 import { channels } from '@/data/channels';
 
@@ -153,6 +156,10 @@ function saveQuests(ids: Set<string>) {
 }
 
 export default function DashboardPage() {
+  const searchParams = useSearchParams();
+  const upgraded = searchParams.get('upgraded') === 'true';
+  const upgradedPlan = searchParams.get('plan') || 'pro';
+  const [showUpgradeBanner, setShowUpgradeBanner] = useState(false);
   const [completedQuests, setCompletedQuests] = useState<Set<string>>(new Set());
   const [mounted, setMounted] = useState(false);
   const [showApiAlert, setShowApiAlert] = useState(false);
@@ -164,6 +171,7 @@ export default function DashboardPage() {
   useEffect(() => {
     setMounted(true);
     setCompletedQuests(loadQuests());
+    if (upgraded) setShowUpgradeBanner(true);
     // Check GROQ key via health endpoint — only show alert when key is missing
     fetch('/api/health')
       .then(r => r.json())
@@ -266,6 +274,20 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-8 animate-fade-in">
+      {/* ── Upgrade Success Banner ── */}
+      {showUpgradeBanner && (
+        <div className="relative flex items-center gap-4 px-5 py-4 rounded-xl bg-gradient-to-r from-indigo-500/20 to-violet-500/20 border border-indigo-500/30">
+          <PartyPopper size={20} className="text-indigo-400 shrink-0" />
+          <div className="flex-1">
+            <p className="text-sm font-bold text-indigo-300">🎉 Welcome to NeuroEng {upgradedPlan.charAt(0).toUpperCase() + upgradedPlan.slice(1)}!</p>
+            <p className="text-xs text-indigo-400/70 mt-0.5">Your payment was successful. Enjoy all premium features!</p>
+          </div>
+          <button onClick={() => setShowUpgradeBanner(false)} className="text-indigo-400/60 hover:text-indigo-400">
+            <X size={14} />
+          </button>
+        </div>
+      )}
+
       {/* ── Welcome Header ── */}
       <div>
         <h1 className="text-3xl sm:text-4xl font-bold text-zinc-100 tracking-tight">

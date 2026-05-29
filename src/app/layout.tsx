@@ -1,21 +1,24 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const inter = Inter({
   subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+  variable: "--font-inter",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "NeuroEng - AI English Speaking Coach",
+  title: "NeuroEng — AI English Speaking Coach",
   description:
-    "Master English speaking with AI-powered conversations, YouTube channel discovery, OPIc preparation, and personalized learning paths.",
+    "Master English speaking with AI-powered conversations, 100+ curated YouTube channels, OPIc preparation, and personalized learning paths. Start free today.",
+  keywords: ["English speaking", "OPIc", "AI conversation", "English learning", "TOEIC speaking"],
+  openGraph: {
+    title: "NeuroEng — AI English Speaking Coach",
+    description: "Master English speaking with AI-powered conversations and curated content.",
+    type: "website",
+    siteName: "NeuroEng",
+  },
 };
 
 export default function RootLayout({
@@ -24,11 +27,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased dark`}
-    >
-      <body className="min-h-full bg-[var(--bg-primary)] text-[var(--text-primary)] font-[family-name:var(--font-geist-sans)]">
+    <html lang="en" className={`${inter.variable} h-full`}>
+      <body className="min-h-full antialiased" style={{ fontFamily: "var(--font-sans)" }}>
         {children}
       </body>
     </html>

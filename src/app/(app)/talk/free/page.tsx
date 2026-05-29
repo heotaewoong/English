@@ -78,7 +78,7 @@ export default function FreeTalkPage() {
     setInput(combined);
   }, []);
 
-  const { isListening, isSupported: sttSupported, error: sttError, clearError: clearSttError, toggleListening } =
+  const { isListening, isSupported: sttSupported, error: sttError, clearError: clearSttError, toggleListening, interimText } =
     useSpeechRecognition(handleSTTResult, { autoRestart: true });
   const { speak, stop: stopTTS, isSpeaking } = useTTS();
 
@@ -198,6 +198,12 @@ export default function FreeTalkPage() {
       setIsLoading(false);
     }
   }, [isLoading, isListening, toggleListening, messages, difficulty, activeTopic, buildHistory, autoSpeak, speak]);
+
+  /* use typed input, falling back to in-progress spoken text */
+  const handleSubmit = useCallback(() => {
+    const text = input.trim() || interimText.trim();
+    if (text) sendMessage(text);
+  }, [input, interimText, sendMessage]);
 
   const handleTopic = (label: string) => {
     setActiveTopic(label);
@@ -538,7 +544,7 @@ export default function FreeTalkPage() {
             onKeyDown={e => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
-                sendMessage(input);
+                handleSubmit();
               }
             }}
             placeholder={isListening ? '🎤 Listening… speak now' : 'Type in English… (Enter to send, Shift+Enter for new line)'}
@@ -562,14 +568,27 @@ export default function FreeTalkPage() {
               </button>
             )}
             <button
-              onClick={() => sendMessage(input)}
-              disabled={!input.trim() || isLoading}
+              onClick={handleSubmit}
+              disabled={!input.trim() && !interimText.trim() || isLoading}
               className="p-2 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 text-white disabled:opacity-30 hover:from-indigo-500 hover:to-violet-500 transition-all"
             >
               {isLoading ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
             </button>
           </div>
         </div>
+
+        {/* Real-time transcript */}
+        {isListening && (
+          <div className="mt-2 flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-white/[0.03] border border-red-500/20 min-h-[40px]">
+            <span className="w-2 h-2 rounded-full bg-red-400 animate-pulse shrink-0" />
+            <span className={`text-sm leading-relaxed flex-1 ${interimText ? 'text-zinc-200' : 'text-zinc-600 italic'}`}>
+              {interimText || '말해보세요…'}
+            </span>
+            {interimText && (
+              <span className="inline-block w-0.5 h-4 bg-indigo-400 animate-pulse shrink-0" />
+            )}
+          </div>
+        )}
 
         {/* Stats */}
         <div className="flex items-center justify-center gap-6 mt-2 text-xs text-[var(--text-muted)]">

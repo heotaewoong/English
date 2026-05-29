@@ -6,6 +6,8 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 
 interface ISpeechRecognitionResult {
   readonly 0: { readonly transcript: string };
+  readonly isFinal: boolean;
+  readonly length: number;
 }
 interface ISpeechRecognitionResultList {
   readonly length: number;
@@ -13,6 +15,7 @@ interface ISpeechRecognitionResultList {
 }
 interface ISpeechRecognitionEvent extends Event {
   readonly results: ISpeechRecognitionResultList;
+  readonly resultIndex: number;
 }
 interface ISpeechRecognitionErrorEvent extends Event {
   readonly error: string;
@@ -53,6 +56,7 @@ export function useSpeechRecognition(
   const [isListening, setIsListening] = useState(false);
   const [isSupported, setIsSupported] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [interimText, setInterimText] = useState('');
 
   const recognitionRef = useRef<ISpeechRecognition | null>(null);
   const SpeechRecCtorRef = useRef<ISpeechRecognitionCtor | null>(null);
@@ -87,19 +91,24 @@ export function useSpeechRecognition(
 
     const rec = new Ctor();
     rec.lang = 'en-US';
-    rec.interimResults = false;
+    rec.interimResults = true;
     rec.maxAlternatives = 1;
     rec.continuous = false; // always false — we handle restart manually for reliability
 
     rec.onresult = (e: ISpeechRecognitionEvent) => {
-      const transcript = Array.from({ length: e.results.length })
-        .map((_, i) => e.results[i][0].transcript)
-        .join('');
-      if (transcript.trim()) onResultRef.current(transcript.trim());
+      const result = e.results[e.resultIndex];
+      const transcript = result[0].transcript;
+      if (result.isFinal) {
+        setInterimText('');
+        if (transcript.trim()) onResultRef.current(transcript.trim());
+      } else {
+        setInterimText(transcript);
+      }
     };
 
     rec.onend = () => {
       if (recognitionRef.current === rec) recognitionRef.current = null;
+      setInterimText('');
       if (isActiveRef.current && autoRestartRef.current) {
         // Auto-restart so the mic keeps listening between utterances
         restartTimerRef.current = setTimeout(() => spawnRef.current(), 150);
@@ -152,6 +161,7 @@ export function useSpeechRecognition(
       recognitionRef.current = null;
     }
     setIsListening(false);
+    setInterimText('');
   }, []);
 
   const toggleListening = useCallback(() => {
@@ -168,7 +178,7 @@ export function useSpeechRecognition(
     if (recognitionRef.current) { try { recognitionRef.current.abort(); } catch { /* ignore */ } }
   }, []);
 
-  return { isListening, isSupported, error, clearError, toggleListening, startListening, stopListening };
+  return { isListening, isSupported, error, clearError, toggleListening, startListening, stopListening, interimText };
 }
 
 /* ─── TTS (Speech Synthesis) ────────────────────────────────────── */
