@@ -173,6 +173,28 @@ function groupIntoSegments(raw: RawSegment[]): CaptionSegment[] {
   return groups;
 }
 
+// ─── Supadata API (most reliable on Vercel) ───
+
+async function fetchViaSupadata(videoId: string): Promise<RawSegment[] | null> {
+  const apiKey = process.env.SUPADATA_API_KEY;
+  if (!apiKey) return null;
+
+  try {
+    const text = await httpsGet(
+      `https://api.supadata.ai/v1/youtube/transcript?videoId=${videoId}&lang=en`,
+      { 'x-api-key': apiKey, 'Accept': 'application/json' },
+    );
+    const data = JSON.parse(text);
+    // Response: { content: [{ text, offset, duration, lang }], lang, availableLangs }
+    if (!Array.isArray(data?.content) || data.content.length === 0) return null;
+    return (data.content as { text: string; offset: number; duration: number }[]).map(s => ({
+      text: s.text,
+      offset: s.offset,
+      duration: s.duration,
+    }));
+  } catch { return null; }
+}
+
 // ─── InnerTube player API — try multiple clients ───
 
 async function fetchCaptionTracks(videoId: string): Promise<CaptionTrack[] | null> {
@@ -306,6 +328,19 @@ export async function GET(req: NextRequest) {
   const videoId = searchParams.get('videoId') ?? '';
   if (!videoId) return NextResponse.json({ error: 'videoId required' }, { status: 400 });
 
+  // ── Strategy 1: Supadata (가장 안정적 — Vercel에서도 동작) ──
+  const supadataRaw = await fetchViaSupadata(videoId);
+  if (supadataRaw && supadataRaw.length > 0) {
+    const segments = groupIntoSegments(supadataRaw);
+    for (let i = 0; i < segments.length - 1; i++) {
+      const gap = segments[i + 1].startMs - segments[i].endMs;
+      if (gap > 0 && gap < 4000) segments[i].endMs = segments[i + 1].startMs;
+    }
+    const rawText = supadataRaw.map(s => s.text.replace(/\n/g, ' ').trim()).join(' ');
+    return NextResponse.json({ segments, rawText, captionLang: 'en', isTranslated: false, availableTracks: [] });
+  }
+
+  // ── Strategy 2: YouTube InnerTube API + HTML scraping ──
   const tracks = await fetchCaptionTracks(videoId) ?? await fetchCaptionTracksViaHTML(videoId);
   if (!tracks) {
     return NextResponse.json({ error: '이 영상에는 자막이 없거나 가져올 수 없어요.' }, { status: 404 });
@@ -313,15 +348,11 @@ export async function GET(req: NextRequest) {
 
   const { track: bestTrack, lang: bestLang } = pickBestTrack(tracks);
 
-  // Strategy:
-  // 1) If best track is English → use it directly
-  // 2) If best track is non-English → try English translation first, then use original
   let xml = '';
   let captionLang = bestLang;
   let isTranslated = false;
 
   if (bestLang !== 'en') {
-    // Try auto-translated English captions first
     const translatedXml = await fetchTranslatedCaptions(bestTrack, 'en');
     if (translatedXml) {
       xml = translatedXml;
@@ -330,7 +361,6 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // If no translation available (or already English), fetch the original track
   if (!xml) {
     const candidates = [bestTrack, ...tracks.filter(t => t !== bestTrack)];
     for (const track of candidates) {
@@ -363,7 +393,6 @@ export async function GET(req: NextRequest) {
 
   const segments = groupIntoSegments(raw);
 
-  // Close small gaps so caption display is continuous
   for (let i = 0; i < segments.length - 1; i++) {
     const gap = segments[i + 1].startMs - segments[i].endMs;
     if (gap > 0 && gap < 4000) segments[i].endMs = segments[i + 1].startMs;
