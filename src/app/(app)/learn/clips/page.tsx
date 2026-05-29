@@ -974,7 +974,7 @@ export default function ClipsPage() {
   const activeFilters = (filterLevel !== null ? 1 : 0) + (filterCat !== 'All' ? 1 : 0) + (hideDone ? 1 : 0);
 
   if (playerClip) {
-    return <ClipPlayer clip={playerClip} linkedVideoId={linkedVideos[playerClip.id]} onBack={() => { setPlayerClip(null); setPlayerStartSeconds(0); }} onStepComplete={toggleStep} onLinkVideo={linkVideo} startSeconds={playerStartSeconds} />;
+    return <ClipPlayer clip={playerClip} linkedVideoId={playerClip.id === 'custom' ? undefined : linkedVideos[playerClip.id]} onBack={() => { setPlayerClip(null); setPlayerStartSeconds(0); }} onStepComplete={toggleStep} onLinkVideo={linkVideo} startSeconds={playerStartSeconds} />;
   }
 
   return (

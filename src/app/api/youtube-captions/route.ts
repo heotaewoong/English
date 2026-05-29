@@ -29,6 +29,7 @@ function httpsGet(url: string, headers: Record<string, string | number>, maxRedi
       const chunks: Buffer[] = [];
       res.on('data', (c) => chunks.push(c));
       res.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
+      res.on('error', reject);
     });
     req.on('error', reject);
     req.end();
@@ -48,6 +49,7 @@ function httpsPost(url: string, body: string, headers: Record<string, string | n
       const chunks: Buffer[] = [];
       res.on('data', (c) => chunks.push(c));
       res.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
+      res.on('error', reject);
     });
     req.on('error', reject);
     req.write(bodyBuf);
@@ -181,7 +183,7 @@ async function fetchViaSupadata(videoId: string): Promise<RawSegment[] | null> {
 
   try {
     const text = await httpsGet(
-      `https://api.supadata.ai/v1/youtube/transcript?videoId=${videoId}&lang=en`,
+      `https://api.supadata.ai/v1/youtube/transcript?videoId=${videoId}`,
       { 'x-api-key': apiKey, 'Accept': 'application/json' },
     );
     const data = JSON.parse(text);
@@ -324,6 +326,7 @@ async function fetchTranslatedCaptions(track: CaptionTrack, targetLang: string):
 // ─── Main API handler ───
 
 export async function GET(req: NextRequest) {
+  try {
   const { searchParams } = new URL(req.url);
   const videoId = searchParams.get('videoId') ?? '';
   if (!videoId) return NextResponse.json({ error: 'videoId required' }, { status: 400 });
@@ -410,4 +413,8 @@ export async function GET(req: NextRequest) {
       kind: t.kind ?? 'manual',
     })),
   });
+  } catch (err) {
+    console.error('[youtube-captions]', err);
+    return NextResponse.json({ error: '자막을 가져오는 중 오류가 발생했어요.' }, { status: 500 });
+  }
 }
