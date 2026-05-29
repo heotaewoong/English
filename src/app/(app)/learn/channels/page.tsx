@@ -256,7 +256,7 @@ function VideoPlayer({ video, onBack }: { video: VideoEntry; onBack: () => void 
       const prev = window.onYouTubeIframeAPIReady;
       window.onYouTubeIframeAPIReady = () => { prev?.(); init(); };
     }
-    return () => { mountedRef.current = false; playerRef.current?.destroy(); playerRef.current = null; };
+    return () => { mountedRef.current = false; playerRef.current?.destroy(); playerRef.current = null; setYtReady(false); };
   }, [video.videoId]);
 
   useEffect(() => { if (ytPaused && ytReady) setShadowMode(true); }, [ytPaused, ytReady]);
@@ -294,9 +294,18 @@ function VideoPlayer({ video, onBack }: { video: VideoEntry; onBack: () => void 
       if (!res.ok) {
         setCaptionError(data.error ?? '자막을 가져올 수 없어요.');
         setScriptTab('manual');
-      } else {
+      } else if (data.segments?.length) {
+        // Use API segments directly — they're already sentence-grouped with timestamps
+        const texts = (data.segments as { text: string }[]).map(s => s.text);
+        setSentences(texts);
+        setActiveIdx(0);
+        setCompletedSentences(new Set());
+        setShowScore(false);
+        setTranscript('');
         setRawScript(data.rawText ?? '');
-        if (data.sentences?.length) applySentences(data.rawText ?? '');
+      } else {
+        setCaptionError(data.error ?? '이 영상에는 자막이 없어요.');
+        setScriptTab('manual');
       }
     } catch {
       setCaptionError('네트워크 오류로 자막을 가져오지 못했어요.');
@@ -383,7 +392,7 @@ function VideoPlayer({ video, onBack }: { video: VideoEntry; onBack: () => void 
               <span className="text-xs font-semibold text-zinc-600 uppercase tracking-wider">속도</span>
               <div className="flex items-center gap-1">
                 {[0.5, 0.75, 1, 1.25, 1.5].map((r) => (
-                  <button key={r} onClick={() => { setSpeed(r); playerRef.current?.setPlaybackRate(r); }}
+                  <button key={r} onClick={() => { setSpeed(r); const p = playerRef.current; if (p && typeof p.setPlaybackRate === 'function') p.setPlaybackRate(r); }}
                     className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${speed === r ? 'bg-indigo-500 text-white' : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.06]'}`}>{r}x</button>
                 ))}
               </div>

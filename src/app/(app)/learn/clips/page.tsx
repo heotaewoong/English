@@ -103,6 +103,11 @@ function extractYtId(input: string): string | null {
   return null;
 }
 
+function extractYtTimestamp(input: string): number {
+  const m = input.match(/[?&]t=(\d+)/);
+  return m ? parseInt(m[1], 10) : 0;
+}
+
 function fmtTime(ms: number): string {
   const s = Math.floor(ms / 1000);
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
@@ -135,10 +140,11 @@ function Waveform({ active = false }: { active?: boolean }) {
    Shadow mode = overlay directly on the video
    Sentence list = click any sentence to practice it
    ══════════════════════════════════════════════════════ */
-function ClipPlayer({ clip, linkedVideoId, onBack, onStepComplete, onLinkVideo }: {
+function ClipPlayer({ clip, linkedVideoId, onBack, onStepComplete, onLinkVideo, startSeconds = 0 }: {
   clip: Clip; linkedVideoId?: string;
   onBack(): void; onStepComplete(id: string, s: Step): void;
   onLinkVideo(clipId: string, videoId: string): void;
+  startSeconds?: number;
 }) {
   const videoId = linkedVideoId ?? clip.youtubeId;
 
@@ -155,6 +161,8 @@ function ClipPlayer({ clip, linkedVideoId, onBack, onStepComplete, onLinkVideo }
   const [capIdx, setCapIdx] = useState(-1);       // current playing caption
   const [loading, setLoading] = useState(false);
   const [capError, setCapError] = useState<string | null>(null);
+  const [capLang, setCapLang] = useState<string>('');       // caption language code
+  const [capTranslated, setCapTranslated] = useState(false); // auto-translated?
   const capIdxRef = useRef(-1);
   const capsRef = useRef<CaptionSeg[]>([]);
   const sentListRef = useRef<HTMLDivElement>(null);
@@ -197,19 +205,47 @@ function ClipPlayer({ clip, linkedVideoId, onBack, onStepComplete, onLinkVideo }
   useEffect(() => { capsRef.current = caps; }, [caps]);
   useEffect(() => { lessonModeRef.current = lessonMode; }, [lessonMode]);
 
+  /* ── Seek to startSeconds once player is ready ── */
+  useEffect(() => {
+    if (!ytReady || startSeconds <= 0) return;
+    const id = setTimeout(() => {
+      const p = playerRef.current;
+      if (p && typeof p.seekTo === 'function') p.seekTo(startSeconds, true);
+    }, 0);
+    return () => clearTimeout(id);
+  }, [ytReady, startSeconds]);
+
+  /* ── When captions load with startSeconds, jump shadow cursor to that position ── */
+  useEffect(() => {
+    if (caps.length > 0 && startSeconds > 0) {
+      const startMs = startSeconds * 1000;
+      let best = 0;
+      for (let i = caps.length - 1; i >= 0; i--) {
+        if (caps[i].startMs <= startMs) { best = i; break; }
+      }
+      setShadowIdx(best);
+    }
+  }, [caps, startSeconds]);
+
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(null), 2000); };
 
   /* ── Fetch captions on video link ── */
   useEffect(() => {
-    if (!videoId) { setCaps([]); setCapError(null); return; }
+    if (!videoId) { setCaps([]); setCapError(null); setCapLang(''); setCapTranslated(false); return; }
     setLoading(true); setCapError(null); setCaps([]); setCapIdx(-1); capIdxRef.current = -1;
+    setCapLang(''); setCapTranslated(false);
     const ctrl = new AbortController();
     fetch(`/api/youtube-captions?videoId=${videoId}`, { signal: ctrl.signal })
       .then(r => r.json())
       .then(d => {
         if (!mountedRef.current) return;
-        if (d.segments?.length) setCaps(d.segments);
-        else setCapError(d.error ?? '자막 없음 — TTS 모드로 연습');
+        if (d.segments?.length) {
+          setCaps(d.segments);
+          setCapLang(d.captionLang ?? '');
+          setCapTranslated(d.isTranslated ?? false);
+        } else {
+          setCapError(d.error ?? '자막 없음 — TTS 모드로 연습');
+        }
       })
       .catch(e => { if (e.name !== 'AbortError' && mountedRef.current) setCapError('자막 로딩 실패 — TTS 모드로 연습'); })
       .finally(() => { if (mountedRef.current) setLoading(false); });
@@ -270,20 +306,22 @@ function ClipPlayer({ clip, linkedVideoId, onBack, onStepComplete, onLinkVideo }
       const prev = window.onYouTubeIframeAPIReady;
       window.onYouTubeIframeAPIReady = () => { prev?.(); init(); };
     }
-    return () => { mountedRef.current = false; playerRef.current?.destroy(); playerRef.current = null; };
+    return () => { mountedRef.current = false; playerRef.current?.destroy(); playerRef.current = null; setYtReady(false); };
   }, [videoId]);
 
   /* ── Polling: sync current caption + auto-pause ── */
   useEffect(() => {
     if (!ytReady) return;
     const id = setInterval(() => { // 80 ms — tight enough for sub-100 ms caption drift
-      const timeMs = (playerRef.current?.getCurrentTime() ?? 0) * 1000;
+      const p = playerRef.current;
+      if (!p || typeof p.getCurrentTime !== 'function') return;
+      const timeMs = (p.getCurrentTime() ?? 0) * 1000;
 
       // Auto-pause at sentence boundary
       if (sentEndRef.current !== null && timeMs >= sentEndRef.current) {
         sentEndRef.current = null;
         suppressShadowRef.current = true;
-        playerRef.current?.pauseVideo();
+        p.pauseVideo();
         setShadowMode(true);
         setScoreResult(null);
         setTranscript('');
@@ -449,7 +487,10 @@ function ClipPlayer({ clip, linkedVideoId, onBack, onStepComplete, onLinkVideo }
             </span>
             {hasCaps && (
               <span className="text-[10px] text-emerald-400 flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> 자막 동기화
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                {capTranslated
+                  ? `자막 동기화 (${capLang.toUpperCase()} 번역)`
+                  : `자막 동기화 (${capLang.toUpperCase()})`}
               </span>
             )}
             {loading && <span className="text-[10px] text-zinc-500">자막 로딩 중...</span>}
@@ -879,6 +920,9 @@ export default function ClipsPage() {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [showFilters, setShowFilters] = useState(false);
   const [playerClip, setPlayerClip] = useState<Clip | null>(null);
+  const [playerStartSeconds, setPlayerStartSeconds] = useState(0);
+  const [customUrl, setCustomUrl] = useState('');
+  const [customErr, setCustomErr] = useState(false);
   const [linkedVideos, setLinkedVideos] = useState<Record<string, string>>(() => {
     if (typeof window === 'undefined') return {};
     try { return JSON.parse(localStorage.getItem('neuroeng_clip_videos') || '{}'); } catch { return {}; }
@@ -888,6 +932,29 @@ export default function ClipsPage() {
     const next = { ...linkedVideos, [clipId]: videoId };
     setLinkedVideos(next);
     localStorage.setItem('neuroeng_clip_videos', JSON.stringify(next));
+  };
+
+  const handleCustomUrl = () => {
+    const id = extractYtId(customUrl.trim());
+    if (!id) { setCustomErr(true); setTimeout(() => setCustomErr(false), 2000); return; }
+    const startSecs = extractYtTimestamp(customUrl.trim());
+    const customClip: Clip = {
+      id: 'custom',
+      title: '커스텀 YouTube 영상',
+      channel: 'YouTube',
+      channelColor: '#ef4444',
+      duration: '',
+      level: 3,
+      category: 'Daily Life',
+      expressions: [],
+      thumbnail: '#1e1b4b',
+      stepsCompleted: [],
+      youtubeUrl: '',
+      youtubeId: id,
+      sentences: [],
+    };
+    setPlayerStartSeconds(startSecs);
+    setPlayerClip(customClip);
   };
   const toggleStep = (id: string, step: Step) => {
     setClips(prev => prev.map(c => { if (c.id !== id) return c; const has = c.stepsCompleted.includes(step); return { ...c, stepsCompleted: has ? c.stepsCompleted.filter(s => s !== step) : [...c.stepsCompleted, step] }; }));
@@ -907,7 +974,7 @@ export default function ClipsPage() {
   const activeFilters = (filterLevel !== null ? 1 : 0) + (filterCat !== 'All' ? 1 : 0) + (hideDone ? 1 : 0);
 
   if (playerClip) {
-    return <ClipPlayer clip={playerClip} linkedVideoId={linkedVideos[playerClip.id]} onBack={() => setPlayerClip(null)} onStepComplete={toggleStep} onLinkVideo={linkVideo} />;
+    return <ClipPlayer clip={playerClip} linkedVideoId={linkedVideos[playerClip.id]} onBack={() => { setPlayerClip(null); setPlayerStartSeconds(0); }} onStepComplete={toggleStep} onLinkVideo={linkVideo} startSeconds={playerStartSeconds} />;
   }
 
   return (
@@ -929,6 +996,40 @@ export default function ClipsPage() {
             <Zap size={14} className="text-yellow-400" /><span className="text-sm font-semibold text-yellow-400">{totalXP} XP</span>
           </div>
         </div>
+      </div>
+
+      {/* ── Custom YouTube URL shadowing ── */}
+      <div className="rounded-2xl bg-gradient-to-br from-violet-600/15 to-indigo-600/15 border border-violet-500/25 p-5">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="p-2 rounded-xl bg-violet-500/20 border border-violet-500/25">
+            <Link2 size={18} className="text-violet-400" />
+          </div>
+          <div>
+            <h2 className="text-base font-bold text-zinc-200">어떤 YouTube 영상이든 쉐도잉</h2>
+            <p className="text-xs text-zinc-500 mt-0.5">URL 붙여넣기 → 자막 자동 추출 → 즉시 쉐도잉</p>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <div className={`flex-1 flex items-center gap-2 px-4 py-3 rounded-xl bg-white/[0.05] border transition-colors ${customErr ? 'border-red-500/50' : 'border-white/[0.08] focus-within:border-violet-500/50'}`}>
+            <ExternalLink size={14} className="text-zinc-500 shrink-0" />
+            <input
+              type="text"
+              value={customUrl}
+              onChange={e => setCustomUrl(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleCustomUrl()}
+              placeholder="https://www.youtube.com/watch?v=... 또는 youtu.be/..."
+              className="flex-1 bg-transparent text-sm text-zinc-300 placeholder-zinc-600 outline-none"
+            />
+            {customErr && <span className="text-xs text-red-400 shrink-0">유효하지 않은 URL</span>}
+          </div>
+          <button
+            onClick={handleCustomUrl}
+            className="flex items-center gap-2 px-5 py-3 rounded-xl bg-violet-500 hover:bg-violet-400 text-white text-sm font-bold transition-colors shadow-lg shadow-violet-500/30 shrink-0"
+          >
+            <Mic size={14} /> 쉐도잉 시작
+          </button>
+        </div>
+        <p className="text-[11px] text-zinc-600 mt-2">t= 타임스탬프 포함 URL도 지원 — 해당 구간부터 시작</p>
       </div>
 
       {/* How it works */}
