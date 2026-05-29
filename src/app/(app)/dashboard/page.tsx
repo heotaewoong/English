@@ -155,7 +155,7 @@ function saveQuests(ids: Set<string>) {
   localStorage.setItem(QUEST_KEY, JSON.stringify({ date: today, ids: [...ids] }));
 }
 
-export default function DashboardPage() {
+function DashboardContent() {
   const searchParams = useSearchParams();
   const upgraded = searchParams.get('upgraded') === 'true';
   const upgradedPlan = searchParams.get('plan') || 'pro';
@@ -626,5 +626,13 @@ export default function DashboardPage() {
         </section>
       </div>
     </div>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={<div className="animate-pulse space-y-6"><div className="h-10 w-80 rounded-xl bg-white/[0.04]" /></div>}>
+      <DashboardContent />
+    </Suspense>
   );
 }
