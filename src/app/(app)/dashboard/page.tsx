@@ -6,7 +6,6 @@ import Link from 'next/link';
 import {
   Flame,
   Zap,
-  Star,
   Clock,
   Check,
   Mic,
@@ -24,7 +23,6 @@ import {
   X,
   BookOpen,
   TrendingUp,
-  Crown,
   PartyPopper,
 } from 'lucide-react';
 import { channels } from '@/data/channels';
@@ -41,6 +39,30 @@ const dailyWords = [
   { word: 'nuance', pronunciation: '/ˈnjuː.ɑːns/', meaning: '미묘한 차이', example: 'There are many nuances in English conversation.', tip: 'Essential word for advanced English communication.' },
   { word: 'meticulous', pronunciation: '/məˈtɪk.jə.ləs/', meaning: '꼼꼼한, 세심한', example: 'He is meticulous about every detail of his work.', tip: 'Always followed by "about" or "in" when paired with a noun.' },
   { word: 'paradigm', pronunciation: '/ˈpær.ə.daɪm/', meaning: '패러다임, 모범', example: 'AI is creating a paradigm shift in education.', tip: '"Paradigm shift" is a very common business/academic phrase.' },
+  { word: 'eloquent', pronunciation: '/ˈel.ə.kwənt/', meaning: '유창한, 설득력 있는', example: 'She gave an eloquent speech that moved the audience.', tip: 'Describes someone who expresses ideas clearly and persuasively.' },
+  { word: 'pragmatic', pronunciation: '/præɡˈmæt.ɪk/', meaning: '실용적인', example: 'We need a pragmatic solution, not a theoretical one.', tip: 'The opposite of idealistic — focused on what works in practice.' },
+  { word: 'diligent', pronunciation: '/ˈdɪl.ɪ.dʒənt/', meaning: '성실한, 근면한', example: 'She is a diligent student who never misses a deadline.', tip: 'A key word in professional contexts to describe work ethic.' },
+  { word: 'concise', pronunciation: '/kənˈsaɪs/', meaning: '간결한', example: 'Please keep your email concise and to the point.', tip: 'Means brief but complete — say more with fewer words.' },
+  { word: 'ambiguous', pronunciation: '/æmˈbɪɡ.ju.əs/', meaning: '모호한', example: 'The instructions were ambiguous, so I asked for clarification.', tip: 'Used when something has more than one possible meaning.' },
+  { word: 'inevitable', pronunciation: '/ɪnˈev.ɪ.tə.bəl/', meaning: '피할 수 없는, 필연적인', example: 'Change is inevitable — you just have to embrace it.', tip: 'Often paired with "it\'s inevitable that..." in formal speech.' },
+  { word: 'profound', pronunciation: '/prəˈfaʊnd/', meaning: '심오한, 깊은', example: 'That TED talk had a profound impact on my thinking.', tip: 'Means deep or significant — stronger than just "important."' },
+  { word: 'spontaneous', pronunciation: '/spɒnˈteɪ.ni.əs/', meaning: '자발적인, 즉흥적인', example: 'We made a spontaneous decision to go on a road trip.', tip: 'Done without planning — implies energy and unpredictability.' },
+  { word: 'versatile', pronunciation: '/ˈvɜː.sə.taɪl/', meaning: '다재다능한, 다용도의', example: 'She is a versatile writer who handles many genres.', tip: 'Applies to both people and objects with many uses or skills.' },
+  { word: 'scrutinize', pronunciation: '/ˈskruː.tɪ.naɪz/', meaning: '면밀히 조사하다', example: 'The committee scrutinized every detail of the proposal.', tip: 'More intense than just "examine" — implies critical inspection.' },
+  { word: 'leverage', pronunciation: '/ˈlev.ər.ɪdʒ/', meaning: '활용하다, 레버리지', example: 'We can leverage social media to reach more customers.', tip: 'Very common in business English — means to use something to your advantage.' },
+  { word: 'collaborate', pronunciation: '/kəˈlæb.ə.reɪt/', meaning: '협력하다', example: 'Our teams collaborate across different time zones.', tip: 'More formal than "work together" — implies shared goals.' },
+  { word: 'transition', pronunciation: '/trænˈzɪʃ.ən/', meaning: '전환, 이행하다', example: 'The company is transitioning to a remote-first model.', tip: 'Can be a noun or verb — useful in both written and spoken English.' },
+  { word: 'persist', pronunciation: '/pəˈsɪst/', meaning: '지속하다, 꾸준히 하다', example: 'If you persist with daily practice, fluency will come.', tip: '"Persist" implies continuing despite obstacles — more than just "continue."' },
+  { word: 'empathize', pronunciation: '/ˈem.pə.θaɪz/', meaning: '공감하다', example: 'A good listener can empathize without offering advice.', tip: 'Different from "sympathize" — empathy means sharing the feeling, not just acknowledging it.' },
+  { word: 'acknowledge', pronunciation: '/əkˈnɒl.ɪdʒ/', meaning: '인정하다, 인식하다', example: 'She acknowledged my effort and thanked me personally.', tip: 'A polite and professional word — acknowledging someone\'s work builds rapport.' },
+  { word: 'clarify', pronunciation: '/ˈklær.ɪ.faɪ/', meaning: '명확히 하다', example: 'Could you clarify what you mean by that?', tip: 'Essential in meetings and emails — never be afraid to ask for clarification.' },
+  { word: 'convey', pronunciation: '/kənˈveɪ/', meaning: '전달하다, 표현하다', example: 'It\'s hard to convey sarcasm in a text message.', tip: 'Used to describe communicating ideas, emotions, or meaning.' },
+  { word: 'navigate', pronunciation: '/ˈnæv.ɪ.ɡeɪt/', meaning: '헤쳐나가다, 탐색하다', example: 'She skillfully navigated the difficult conversation.', tip: 'Commonly used metaphorically — "navigate challenges/situations."' },
+  { word: 'prioritize', pronunciation: '/praɪˈɒr.ɪ.taɪz/', meaning: '우선순위를 정하다', example: 'You need to prioritize sleep over late-night scrolling.', tip: 'Key productivity and self-care word — very common in modern speech.' },
+  { word: 'elaborate', pronunciation: '/ɪˈlæb.ər.ɪt/', meaning: '자세히 설명하다', example: 'Could you elaborate on your second point?', tip: 'Great for academic and professional discussions — asks for more detail.' },
+  { word: 'undermine', pronunciation: '/ˌʌn.dəˈmaɪn/', meaning: '약화시키다, 훼손하다', example: 'Negative self-talk can undermine your confidence.', tip: 'Often used with abstract nouns: undermine confidence/trust/authority.' },
+  { word: 'encompass', pronunciation: '/ɪnˈkʌm.pəs/', meaning: '포함하다, 아우르다', example: 'The term "wellness" encompasses physical and mental health.', tip: 'More formal than "include" — implies covering a wide range.' },
+  { word: 'substantial', pronunciation: '/səbˈstæn.ʃəl/', meaning: '상당한, 실질적인', example: 'There has been a substantial improvement in her speaking.', tip: '"Substantial" is stronger than "considerable" — implies real weight or size.' },
 ];
 
 function getTodaysWord() {
@@ -49,19 +71,54 @@ function getTodaysWord() {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Mock data                                                          */
+/*  XP / Streak persistence                                           */
 /* ------------------------------------------------------------------ */
 
-const weeklyXP = [
-  { day: 'Mon', xp: 320 },
-  { day: 'Tue', xp: 480 },
-  { day: 'Wed', xp: 250 },
-  { day: 'Thu', xp: 510 },
-  { day: 'Fri', xp: 390 },
-  { day: 'Sat', xp: 450 },
-  { day: 'Sun', xp: 180 },
-];
-const maxXP = Math.max(...weeklyXP.map((d) => d.xp));
+const STREAK_KEY = 'neuroeng_streak_v2';
+const XP_DAILY_KEY = 'neuroeng_xp_daily_v1';
+
+function getToday() { return new Date().toISOString().split('T')[0]; }
+
+function loadStreak(): { streak: number; lastDate: string } {
+  try { const r = localStorage.getItem(STREAK_KEY); return r ? JSON.parse(r) : { streak: 0, lastDate: '' }; } catch { return { streak: 0, lastDate: '' }; }
+}
+
+function updateAndGetStreak(): number {
+  const today = getToday();
+  const data = loadStreak();
+  if (data.lastDate === today) return data.streak || 1;
+  const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+  const newStreak = data.lastDate === yesterday ? (data.streak + 1) : 1;
+  localStorage.setItem(STREAK_KEY, JSON.stringify({ streak: newStreak, lastDate: today }));
+  return newStreak;
+}
+
+function loadDailyXP(): Record<string, number> {
+  try { const r = localStorage.getItem(XP_DAILY_KEY); return r ? JSON.parse(r) : {}; } catch { return {}; }
+}
+
+function addDailyXP(amount: number) {
+  const today = getToday();
+  const data = loadDailyXP();
+  data[today] = (data[today] || 0) + amount;
+  localStorage.setItem(XP_DAILY_KEY, JSON.stringify(data));
+}
+
+function getWeeklyChart(): { day: string; xp: number }[] {
+  const data = loadDailyXP();
+  const now = new Date();
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(now);
+    d.setDate(d.getDate() - (6 - i));
+    const dateStr = d.toISOString().split('T')[0];
+    const dayName = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getDay()];
+    return { day: dayName, xp: data[dateStr] || 0 };
+  });
+}
+
+/* ------------------------------------------------------------------ */
+/*  Static data                                                        */
+/* ------------------------------------------------------------------ */
 
 const quests = [
   { id: 'q1', title: 'Watch 1 YouTube clip', xp: 10, icon: Play },
@@ -165,13 +222,20 @@ function DashboardContent() {
   const [showApiAlert, setShowApiAlert] = useState(false);
   const [wordFlipped, setWordFlipped] = useState(false);
   const [vocabCount, setVocabCount] = useState(0);
-  const [scriptCount, setScriptCount] = useState(0);
+  const [streak, setStreak] = useState(0);
+  const [weeklyXP, setWeeklyXP] = useState<{ day: string; xp: number }[]>([
+    { day: 'Mon', xp: 0 }, { day: 'Tue', xp: 0 }, { day: 'Wed', xp: 0 },
+    { day: 'Thu', xp: 0 }, { day: 'Fri', xp: 0 }, { day: 'Sat', xp: 0 }, { day: 'Sun', xp: 0 },
+  ]);
   const todayWord = getTodaysWord();
 
   useEffect(() => {
     setMounted(true);
     setCompletedQuests(loadQuests());
     if (upgraded) setShowUpgradeBanner(true);
+    // Real streak + weekly chart
+    setStreak(updateAndGetStreak());
+    setWeeklyXP(getWeeklyChart());
     // Check GROQ key via health endpoint — only show alert when key is missing
     fetch('/api/health')
       .then(r => r.json())
@@ -186,18 +250,24 @@ function DashboardContent() {
       const raw = localStorage.getItem('neuroeng_vocab_v2');
       if (raw) setVocabCount(JSON.parse(raw).length);
     } catch {}
-    // Real scripts count
-    try {
-      const raw = localStorage.getItem('neuroeng_opic_scripts_v1');
-      if (raw) setScriptCount(JSON.parse(raw).length);
-    } catch {}
+    // (script count removed from stats — no display currently)
   }, []);
 
   const toggleQuest = (id: string) => {
     setCompletedQuests((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      const wasCompleted = next.has(id);
+      if (wasCompleted) {
+        next.delete(id);
+      } else {
+        next.add(id);
+        // Persist XP earned for this quest
+        const q = quests.find(q => q.id === id);
+        if (q) {
+          addDailyXP(q.xp);
+          setWeeklyXP(getWeeklyChart());
+        }
+      }
       saveQuests(next);
       return next;
     });
@@ -221,10 +291,10 @@ function DashboardContent() {
 
   const stats = [
     {
-      label: 'Vocab Saved',
-      value: vocabCount > 0 ? `${vocabCount}` : '—',
-      sub: vocabCount > 0 ? '내 단어장' : '아직 단어 없음',
-      icon: BookOpen,
+      label: 'Day Streak',
+      value: streak > 0 ? `${streak}🔥` : '—',
+      sub: streak > 0 ? `${streak}일 연속 학습 중!` : '오늘 첫 방문',
+      icon: Flame,
       iconColor: 'text-orange-400',
       iconBg: 'bg-orange-400/10',
       accent: 'from-orange-500 to-red-500',
@@ -240,10 +310,10 @@ function DashboardContent() {
       progress: xpProgress,
     },
     {
-      label: 'Scripts',
-      value: scriptCount > 0 ? `${scriptCount}` : '—',
-      sub: scriptCount > 0 ? 'OPIc 스크립트' : '아직 스크립트 없음',
-      icon: Star,
+      label: 'Vocab Saved',
+      value: vocabCount > 0 ? `${vocabCount}` : '—',
+      sub: vocabCount > 0 ? '내 단어장' : '아직 단어 없음',
+      icon: BookOpen,
       iconColor: 'text-indigo-400',
       iconBg: 'bg-indigo-400/10',
       accent: 'from-indigo-500 to-violet-500',
@@ -359,7 +429,7 @@ function DashboardContent() {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {[
             { href: '/talk/free', icon: MessageCircle, label: 'AI Free Talk', desc: 'Llama 3.3 · 스트리밍', color: 'from-indigo-500/10 to-violet-500/10', border: 'border-indigo-500/20', iconColor: 'text-indigo-400' },
-            { href: '/talk/grammar', icon: Wand2, label: 'Grammar Checker', desc: 'AI 문법 교정', color: 'from-violet-500/10 to-pink-500/10', border: 'border-violet-500/20', iconColor: 'text-violet-400' },
+            { href: '/learn/grammar', icon: Wand2, label: 'Grammar Checker', desc: 'AI 문법 교정', color: 'from-violet-500/10 to-pink-500/10', border: 'border-violet-500/20', iconColor: 'text-violet-400' },
             { href: '/opic/ai-coach', icon: Brain, label: 'OPIc AI Coach', desc: 'IM/IH/AL 레벨별 연습', color: 'from-blue-500/10 to-indigo-500/10', border: 'border-blue-500/20', iconColor: 'text-blue-400' },
           ].map(f => (
             <Link key={f.href} href={f.href}
@@ -560,7 +630,8 @@ function DashboardContent() {
           <div className="rounded-2xl bg-white/[0.04] border border-white/[0.06] p-6 h-[280px] flex flex-col justify-end">
             <div className="flex items-end justify-between gap-2 h-full pb-2">
               {weeklyXP.map((d, i) => {
-                const pct = (d.xp / maxXP) * 100;
+                const maxVal = Math.max(...weeklyXP.map(x => x.xp), 1);
+                const pct = (d.xp / maxVal) * 100;
                 const isToday = i === (new Date().getDay() + 6) % 7;
                 return (
                   <div key={d.day} className="flex-1 flex flex-col items-center gap-2 h-full justify-end">

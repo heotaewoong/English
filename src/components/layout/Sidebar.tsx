@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -60,9 +60,36 @@ const bottomLinks: NavItem[] = [
   { label: 'Profile',       href: '/profile', icon: User },
 ];
 
+function getSidebarStats() {
+  try {
+    const streakRaw = localStorage.getItem('neuroeng_streak_v2');
+    const streak = streakRaw ? (JSON.parse(streakRaw).streak || 0) : 0;
+    const xpRaw = localStorage.getItem('neuroeng_xp_daily_v1');
+    const totalXP = xpRaw
+      ? Object.values(JSON.parse(xpRaw) as Record<string, number>).reduce((a, b) => a + b, 0)
+      : 0;
+    return { streak, totalXP };
+  } catch { return { streak: 0, totalXP: 0 }; }
+}
+
 export default function Sidebar() {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [sidebarStreak, setSidebarStreak] = useState(0);
+  const [sidebarXP, setSidebarXP] = useState(0);
+
+  useEffect(() => {
+    const { streak, totalXP } = getSidebarStats();
+    setSidebarStreak(streak);
+    setSidebarXP(totalXP);
+    const onStorage = () => {
+      const { streak: s, totalXP: x } = getSidebarStats();
+      setSidebarStreak(s);
+      setSidebarXP(x);
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, []);
 
   const isActive = (href: string) => {
     if (href === '/dashboard') return pathname === '/dashboard';
@@ -166,13 +193,13 @@ export default function Sidebar() {
       <div className="mx-3 mb-2 px-4 py-3 rounded-xl flex items-center justify-around" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}>
         <div className="flex items-center gap-1.5">
           <Flame size={15} className="text-orange-400" />
-          <span className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>7</span>
+          <span className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>{sidebarStreak}</span>
           <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>streak</span>
         </div>
         <div className="w-px h-4" style={{ background: 'var(--border-strong)' }} />
         <div className="flex items-center gap-1.5">
           <Zap size={15} className="text-amber-400" />
-          <span className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>1,240</span>
+          <span className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>{sidebarXP.toLocaleString()}</span>
           <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>XP</span>
         </div>
       </div>

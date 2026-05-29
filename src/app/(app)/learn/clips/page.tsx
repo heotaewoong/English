@@ -910,13 +910,28 @@ function ClipCard({ clip, onToggleStep, bookmarked, onToggleBookmark, expanded, 
   );
 }
 
+/* ─── Persistence helpers ─── */
+const STEPS_KEY = 'neuroeng_clip_steps_v1';
+const BOOKMARKS_KEY = 'neuroeng_clip_bookmarks_v1';
+
+function loadClipSteps(): Record<string, Step[]> {
+  try { const r = localStorage.getItem(STEPS_KEY); return r ? JSON.parse(r) : {}; } catch { return {}; }
+}
+
 /* ─── Main page ─── */
 export default function ClipsPage() {
-  const [clips, setClips] = useState<Clip[]>(CLIPS);
+  const [clips, setClips] = useState<Clip[]>(() => {
+    if (typeof window === 'undefined') return CLIPS;
+    const saved = loadClipSteps();
+    return CLIPS.map(c => saved[c.id] ? { ...c, stepsCompleted: saved[c.id] } : c);
+  });
   const [filterLevel, setFilterLevel] = useState<number | null>(null);
   const [filterCat, setFilterCat] = useState('All');
   const [hideDone, setHideDone] = useState(false);
-  const [bookmarks, setBookmarks] = useState<Set<string>>(new Set());
+  const [bookmarks, setBookmarks] = useState<Set<string>>(() => {
+    if (typeof window === 'undefined') return new Set();
+    try { const r = localStorage.getItem(BOOKMARKS_KEY); return r ? new Set(JSON.parse(r)) : new Set(); } catch { return new Set(); }
+  });
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [showFilters, setShowFilters] = useState(false);
   const [playerClip, setPlayerClip] = useState<Clip | null>(null);
@@ -957,9 +972,25 @@ export default function ClipsPage() {
     setPlayerClip(customClip);
   };
   const toggleStep = (id: string, step: Step) => {
-    setClips(prev => prev.map(c => { if (c.id !== id) return c; const has = c.stepsCompleted.includes(step); return { ...c, stepsCompleted: has ? c.stepsCompleted.filter(s => s !== step) : [...c.stepsCompleted, step] }; }));
+    setClips(prev => {
+      const next = prev.map(c => {
+        if (c.id !== id) return c;
+        const has = c.stepsCompleted.includes(step);
+        const updated: Clip = { ...c, stepsCompleted: has ? c.stepsCompleted.filter(s => s !== step) : [...c.stepsCompleted, step] };
+        const all = loadClipSteps();
+        all[id] = updated.stepsCompleted;
+        try { localStorage.setItem(STEPS_KEY, JSON.stringify(all)); } catch {}
+        return updated;
+      });
+      return next;
+    });
   };
-  const toggleBookmark = (id: string) => setBookmarks(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const toggleBookmark = (id: string) => setBookmarks(prev => {
+    const n = new Set(prev);
+    n.has(id) ? n.delete(id) : n.add(id);
+    try { localStorage.setItem(BOOKMARKS_KEY, JSON.stringify([...n])); } catch {}
+    return n;
+  });
   const toggleExpand = (id: string) => setExpanded(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
   const filtered = useMemo(() => clips.filter(c => {
